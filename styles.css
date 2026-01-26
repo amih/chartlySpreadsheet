@@ -1,0 +1,11 @@
+/* 
+ * Tailwind CSS is used for styling. 
+ * See index.html for Tailwind configuration via CDN.
+ * Custom styles can be added here if needed.
+ */
+
+/* Optional: Custom canvas styling enhancements */
+canvas {
+    image-rendering: crisp-edges;
+}
+

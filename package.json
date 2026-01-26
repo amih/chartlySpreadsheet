@@ -1,0 +1,33 @@
+{
+  "name": "chartly-spreadsheet",
+  "version": "1.0.0",
+  "description": "A JavaScript spreadsheet that runs in the browser with canvas rendering and optional node.js calculator mode",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "node-start": "node src/index.js",
+    "node-dev": "node --watch src/index.js",
+    "node-demo": "node src/demo.js"
+  },
+  "keywords": [
+    "spreadsheet",
+    "canvas",
+    "calculator",
+    "browser",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.0",
+    "vite": "^5.0.0"
+  }
+}
+
