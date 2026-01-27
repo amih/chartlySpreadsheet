@@ -1,57 +1,91 @@
-import React, { useRef, useEffect } from 'react';
-import { CanvasRenderer } from './renderer';
+import React, { useRef, useEffect, useState } from 'react';
+import { CanvasRenderer } from '../renderer';
 
-export function SpreadsheetCanvas({ spreadsheet, title }) {
+export function SpreadsheetCanvas({ spreadsheet }) {
   const canvasRef = useRef(null);
-  const [dimensions, setDimensions] = React.useState({ width: 800, height: title === 'Customers' ? 300 : 400 });
+  const scrollContainerRef = useRef(null);
+  const [dimensions, setDimensions] = useState({ width: 1000, height: 600 });
 
   useEffect(() => {
     const handleResize = () => {
-      if (canvasRef.current) {
-        const rect = canvasRef.current.getBoundingClientRect();
-        setDimensions({ width: rect.width, height: title === 'Customers' ? 300 : 400 });
+      if (scrollContainerRef.current) {
+        setDimensions({
+          width: scrollContainerRef.current.clientWidth,
+          height: scrollContainerRef.current.clientHeight
+        });
       }
     };
 
-    handleResize();
+    // Initial size
+    const timer = setTimeout(handleResize, 100);
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [title]);
-
-  useEffect(() => {
-    if (canvasRef.current) {
-      const renderer = new CanvasRenderer(canvasRef.current, spreadsheet);
-      renderer.render();
-    }
-  }, [spreadsheet]);
-
-  const handleWheel = (e) => {
-    e.preventDefault();
-    spreadsheet.scroll(e.deltaX * 0.1, e.deltaY * 0.1);
     
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  const render = (width = dimensions.width, height = dimensions.height) => {
     if (canvasRef.current) {
-      const renderer = new CanvasRenderer(canvasRef.current, spreadsheet);
+      const renderer = new CanvasRenderer(
+        canvasRef.current,
+        spreadsheet,
+        width,
+        height
+      );
       renderer.render();
     }
   };
 
+  useEffect(() => {
+    render(dimensions.width, dimensions.height);
+  }, [spreadsheet, dimensions]);
+
+  const handleScroll = (e) => {
+    const container = e.currentTarget;
+    spreadsheet.scrollX = container.scrollLeft;
+    spreadsheet.scrollY = container.scrollTop;
+
+    // Move canvas to follow scroll position
+    if (canvasRef.current) {
+      canvasRef.current.style.left = `${container.scrollLeft}px`;
+      canvasRef.current.style.top = `${container.scrollTop}px`;
+    }
+
+    render(dimensions.width, dimensions.height);
+  };
+
+  // Calculate virtual canvas dimensions
+  const canvasWidth = spreadsheet.getVirtualCanvasWidth();
+  const canvasHeight = spreadsheet.getVirtualCanvasHeight();
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-bold text-slate-700 mb-4 pb-3 border-b-2 border-blue-500">
-        {title}
+        Spreadsheet
       </h2>
-      <div className="border border-gray-200 rounded overflow-hidden">
-        <canvas
-          ref={canvasRef}
-          onWheel={handleWheel}
-          width={dimensions.width}
-          height={dimensions.height}
-          className="block w-full bg-white"
-        />
-      </div>
-      <div className="flex gap-3 mt-4">
-        <div className="flex-1 h-3 bg-gray-100 border border-gray-300 rounded cursor-pointer hover:bg-gray-200"></div>
-        <div className={`w-3 ${title === 'Customers' ? 'h-16' : 'h-20'} bg-gray-100 border border-gray-300 rounded cursor-pointer hover:bg-gray-200`}></div>
+      
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="border border-gray-200 rounded overflow-auto"
+        style={{ width: '100%', height: '600px', position: 'relative' }}
+      >
+        <div style={{ width: `${canvasWidth}px`, height: `${canvasHeight}px`, position: 'relative' }}>
+          <canvas
+            ref={canvasRef}
+            width={dimensions.width}
+            height={dimensions.height}
+            className="block bg-white"
+            style={{ 
+              display: 'block',
+              position: 'absolute',
+              top: 0,
+              left: 0
+            }}
+          />
+        </div>
       </div>
     </div>
   );
