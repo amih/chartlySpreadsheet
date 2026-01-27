@@ -16,13 +16,11 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       <Header />
-      
-      <main className="flex-1 py-8 px-6">
-        <div className="max-w-7xl mx-auto">
-          <SpreadsheetCanvas spreadsheet={spreadsheet} />
-        </div>
+
+      <main className="flex-1 min-h-0">
+        <SpreadsheetCanvas spreadsheet={spreadsheet} />
       </main>
 
       <Footer />

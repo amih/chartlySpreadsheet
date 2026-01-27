@@ -1,92 +1,96 @@
 # Chartly Spreadsheet
 
-A JavaScript spreadsheet project that runs in the browser with canvas rendering and optional node.js calculator mode.
+A high-performance canvas-based spreadsheet built with React and Vite.
 
 ## Features
 
-- **Browser Demo**: Interactive spreadsheet with canvas-based rendering and scrollbars
-- **Node.js Calculator Mode**: Run spreadsheet calculations without UI
-- **Customer Management**: Table with 15 demo customers (ID, name, email, phone, address, etc.)
-- **Sales Tracking**: Table with 40 demo sales records (customer ID, date/time, amount, status)
-- **Canvas Rendering**: Efficient drawing of spreadsheet cells with gridlines
-- **Scrolling**: Horizontal and vertical scrolling support
+### Rendering
+- Canvas-based rendering for performance (no DOM per-cell)
+- Hi-DPI / Retina display support via `devicePixelRatio` scaling
+- Four separate canvases: corner, column headers, row numbers, and body
+- Frozen column headers and row numbers that don't repaint during scroll
+- Virtual scrolling with 1000 rows and 100 columns
+- Gridlines and cell borders
+
+### Layout
+- Full-screen layout with no browser scrollbar
+- CSS Grid for frozen header/row-number panels
+- Responsive — fills browser window on resize
+
+### Selection
+- Click to select a cell (blue border highlight)
+- Drag to select a range of cells (blue fill overlay)
+- Shift+Click to extend selection
+- Shift+Arrow keys to extend selection incrementally
+- Arrow keys to move selection
+- Tab / Shift+Tab to move horizontally
+- Default selection on cell A1 at startup
+
+### Editing
+- Double-click or press Enter/F2 to enter edit mode
+- Type any character to begin editing immediately
+- Enter commits and moves down, Tab commits and moves right
+- Escape cancels the edit
+- Arrow keys exit edit mode and move focus (Left/Right only at cursor boundaries)
+- Click another cell while editing commits the current edit and enters edit on the new cell
+- Delete/Backspace clears the selected cell
+- All cells are editable, including header rows
+
+### Formulas
+- Cells starting with `=` are evaluated as formulas
+- Cell references: `=A1`, `=B3+C3`
+- Arithmetic: `=A1*2+B1/3`
+- Range functions: `SUM`, `AVG`/`AVERAGE`, `MIN`, `MAX`, `COUNT`
+- Rectangular ranges: `=SUM(C3:E5)` sums all cells in the 3x3 block
+- Circular reference detection (displays `#ERR`)
+- Invalid formulas display `#ERR`
+- Editing a formula cell shows the raw formula; the cell displays the computed result
+- Arrow keys during formula editing insert/replace cell references at the cursor
+- Repeated arrow keys move the referenced cell instead of inserting duplicates
+
+### Copy
+- Ctrl+C / Cmd+C copies the selected range as tab-separated text to the clipboard
+- Copies evaluated values, not raw formulas
+
+### Resizable Columns and Rows
+- Drag the right edge of a column header to resize the column
+- Drag the bottom edge of a row number to resize the row
+- Cursor changes to `col-resize` / `row-resize` when hovering near edges
+- Minimum column width: 40px, minimum row height: 16px
+- Default column width: 120px, default row height: 30px
+- Prefix-sum arrays with binary search for O(log n) hit-testing of variable-size cells
+
+### Data
+- Editing any cell outside the initial data auto-expands the data model
+- Demo dataset with 15 customers and 40 sales records
+- Combined view with field headers, customer data, separator, and sales data
+- ISO 8601 date format
+
+## Tech Stack
+- React 18
+- Vite
+- Tailwind CSS
+- HTML5 Canvas API
 
 ## Project Structure
 
 ```
-├── index.html          # Main HTML file for browser demo
-├── app.js              # Browser application entry point
-├── styles.css          # Styling for browser UI
-├── package.json        # Project dependencies and scripts
-├── README.md           # This file
+├── index.html                        # Main HTML file
+├── package.json                      # Dependencies and scripts
 └── src/
-    ├── index.js        # Node.js entry point
-    ├── demo.js         # Node.js demo with calculations
-    ├── spreadsheet.js  # Core spreadsheet class
-    ├── renderer.js     # Canvas renderer for display
-    └── data.js         # Sample data generator
+    ├── main.jsx                      # Entry point
+    ├── spreadsheet.js                # Core data model (sizes, prefix sums, binary search)
+    ├── renderer.js                   # Canvas rendering (4 regions, hi-DPI)
+    ├── data.js                       # Sample data generator
+    └── components/
+        ├── App.jsx                   # Root app layout
+        ├── Layout.jsx                # Header and footer
+        └── SpreadsheetCanvas.jsx     # Main component (selection, editing, resize, scroll)
 ```
-
-## Installation
-
-No additional dependencies required - this project uses vanilla JavaScript.
 
 ## Usage
 
-### Browser Demo
-
-1. Open `index.html` in a web browser
-2. View the customer and sales tables rendered on canvas
-3. Scroll using mouse wheel to navigate the spreadsheet
-
-### Node.js Calculator Mode
-
 ```bash
-# Run basic calculator mode
-npm start
-
-# Run with auto-reload (requires Node.js with --watch support)
+npm install
 npm run dev
-
-# Run demo with detailed calculations and table output
-npm run demo
 ```
-
-## Data Structure
-
-### Customers Table (15 rows)
-- Customer ID
-- First Name
-- Last Name
-- Email
-- Phone
-- Created At
-- Address
-- City
-- State
-- Country
-
-### Sales Table (40 rows)
-- Customer ID (references customer list)
-- Sale Date and Time
-- Total Amount
-- Status (Completed, Pending, Cancelled, Processing)
-
-## Features Implemented
-
-- ✅ Spreadsheet class with data management
-- ✅ Canvas-based renderer with cell drawing
-- ✅ Horizontal and vertical scrolling
-- ✅ Sample data generation (customers and sales)
-- ✅ Browser UI with responsive layout
-- ✅ Node.js calculator mode
-- ✅ Grid lines and cell formatting
-
-## Future Enhancements
-
-- Cell editing and formula support
-- More advanced calculations
-- Data export (CSV, JSON)
-- Advanced filtering and sorting
-- Keyboard navigation
-- Cell selection and copy/paste

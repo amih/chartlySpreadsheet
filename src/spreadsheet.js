@@ -1,6 +1,14 @@
 /**
  * Spreadsheet class - Core spreadsheet functionality
  */
+
+const DEFAULT_COL_WIDTH = 120;
+const DEFAULT_ROW_HEIGHT = 30;
+const MIN_COL_WIDTH = 40;
+const MIN_ROW_HEIGHT = 16;
+
+export { DEFAULT_COL_WIDTH, DEFAULT_ROW_HEIGHT, MIN_COL_WIDTH, MIN_ROW_HEIGHT };
+
 export class Spreadsheet {
     constructor(data = [], columns = [], virtualRows = 1000, virtualColumns = 100) {
         this.data = data;
@@ -9,8 +17,79 @@ export class Spreadsheet {
         this.scrollY = 0;
         this.virtualRows = virtualRows;
         this.virtualColumns = virtualColumns;
-        this.cellWidth = 120;
-        this.cellHeight = 30;
+
+        // Per-column widths and per-row heights
+        this.colWidths = new Array(virtualColumns).fill(DEFAULT_COL_WIDTH);
+        this.rowHeights = new Array(virtualRows).fill(DEFAULT_ROW_HEIGHT);
+
+        // Precomputed prefix sums for fast lookup
+        this._colPrefix = null;
+        this._rowPrefix = null;
+        this._rebuildColPrefix();
+        this._rebuildRowPrefix();
+    }
+
+    _rebuildColPrefix() {
+        const p = new Float64Array(this.virtualColumns + 1);
+        for (let i = 0; i < this.virtualColumns; i++) {
+            p[i + 1] = p[i] + this.colWidths[i];
+        }
+        this._colPrefix = p;
+    }
+
+    _rebuildRowPrefix() {
+        const p = new Float64Array(this.virtualRows + 1);
+        for (let i = 0; i < this.virtualRows; i++) {
+            p[i + 1] = p[i] + this.rowHeights[i];
+        }
+        this._rowPrefix = p;
+    }
+
+    /** X offset of the left edge of column `col` */
+    getColLeft(col) {
+        if (col <= 0) return 0;
+        if (col > this.virtualColumns) col = this.virtualColumns;
+        return this._colPrefix[col];
+    }
+
+    /** Y offset of the top edge of row `row` */
+    getRowTop(row) {
+        if (row <= 0) return 0;
+        if (row > this.virtualRows) row = this.virtualRows;
+        return this._rowPrefix[row];
+    }
+
+    /** Find column index at pixel x (relative to content origin) */
+    getColAtX(x) {
+        if (x <= 0) return 0;
+        // Binary search on prefix sums
+        let lo = 0, hi = this.virtualColumns - 1;
+        while (lo < hi) {
+            const mid = (lo + hi + 1) >> 1;
+            if (this._colPrefix[mid] <= x) lo = mid; else hi = mid - 1;
+        }
+        return lo;
+    }
+
+    /** Find row index at pixel y (relative to content origin) */
+    getRowAtY(y) {
+        if (y <= 0) return 0;
+        let lo = 0, hi = this.virtualRows - 1;
+        while (lo < hi) {
+            const mid = (lo + hi + 1) >> 1;
+            if (this._rowPrefix[mid] <= y) lo = mid; else hi = mid - 1;
+        }
+        return lo;
+    }
+
+    setColWidth(col, width) {
+        this.colWidths[col] = Math.max(MIN_COL_WIDTH, width);
+        this._rebuildColPrefix();
+    }
+
+    setRowHeight(row, height) {
+        this.rowHeights[row] = Math.max(MIN_ROW_HEIGHT, height);
+        this._rebuildRowPrefix();
     }
 
     getRows() {
@@ -25,43 +104,132 @@ export class Spreadsheet {
         this.data.push(row);
     }
 
+    _ensureRow(row) {
+        if (row < 0) return;
+        while (this.data.length <= row) {
+            this.data.push({});
+        }
+    }
+
+    _ensureCol(col) {
+        if (col < 0) return;
+        while (this.columns.length <= col) {
+            const idx = this.columns.length;
+            this.columns.push({ key: `col${idx}`, label: `Col ${idx}` });
+        }
+    }
+
     getCell(row, col) {
-        if (row < 0 || row >= this.data.length) return null;
-        if (col < 0 || col >= this.columns.length) return null;
+        if (row < 0 || col < 0) return null;
+        if (row >= this.data.length || col >= this.columns.length) return null;
         return this.data[row][this.columns[col].key];
     }
 
-    scroll(deltaX, deltaY) {
-        const maxScrollX = Math.max(0, this.virtualColumns * this.cellWidth - 800);
-        const maxScrollY = Math.max(0, this.virtualRows * this.cellHeight - 600);
-        
-        this.scrollX = Math.max(0, Math.min(maxScrollX, this.scrollX + deltaX));
-        this.scrollY = Math.max(0, Math.min(maxScrollY, this.scrollY + deltaY));
+    setCell(row, col, value) {
+        if (row < 0 || col < 0) return;
+        this._ensureRow(row);
+        this._ensureCol(col);
+        this.data[row][this.columns[col].key] = value;
     }
 
-    scrollToColumn(col) {
-        this.scrollX = Math.max(0, col * this.cellWidth - 100);
+    isCellEditable(row) {
+        return row >= 0;
     }
 
-    scrollToRow(row) {
-        this.scrollY = Math.max(0, row * this.cellHeight - 100);
+    /** Parse a cell reference like "A1" into {row, col} (0-indexed) */
+    _parseCellRef(ref) {
+        const m = ref.match(/^([A-Z]+)(\d+)$/);
+        if (!m) return null;
+        let col = 0;
+        for (const ch of m[1]) {
+            col = col * 26 + (ch.charCodeAt(0) - 64);
+        }
+        col -= 1; // 0-indexed
+        const row = parseInt(m[2], 10) - 1; // 0-indexed
+        return { row, col };
+    }
+
+    /** Get numeric value of a cell for formula use */
+    _getCellValue(row, col, visited) {
+        const key = `${row},${col}`;
+        if (visited.has(key)) return NaN; // circular ref
+        visited.add(key);
+        const raw = this.getCell(row, col);
+        if (raw == null || raw === '') return 0;
+        const s = String(raw);
+        if (s.startsWith('=')) {
+            const result = this._evaluate(s.substring(1), visited);
+            return typeof result === 'number' ? result : NaN;
+        }
+        const n = Number(s.replace(/^\$/, ''));
+        return isNaN(n) ? 0 : n;
+    }
+
+    /** Expand a range like A1:A5 into array of numeric values */
+    _expandRange(startRef, endRef, visited) {
+        const s = this._parseCellRef(startRef);
+        const e = this._parseCellRef(endRef);
+        if (!s || !e) return [];
+        const values = [];
+        for (let r = Math.min(s.row, e.row); r <= Math.max(s.row, e.row); r++) {
+            for (let c = Math.min(s.col, e.col); c <= Math.max(s.col, e.col); c++) {
+                values.push(this._getCellValue(r, c, new Set(visited)));
+            }
+        }
+        return values;
+    }
+
+    /** Evaluate a formula expression (without the leading =) */
+    _evaluate(expr, visited) {
+        try {
+            // Handle range functions: SUM, AVG, MIN, MAX, COUNT
+            let processed = expr.replace(
+                /\b(SUM|AVG|AVERAGE|MIN|MAX|COUNT)\(([A-Z]+\d+):([A-Z]+\d+)\)/gi,
+                (_, fn, start, end) => {
+                    const vals = this._expandRange(start.toUpperCase(), end.toUpperCase(), visited);
+                    const nums = vals.filter(v => !isNaN(v));
+                    switch (fn.toUpperCase()) {
+                        case 'SUM': return nums.reduce((a, b) => a + b, 0);
+                        case 'AVG':
+                        case 'AVERAGE': return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
+                        case 'MIN': return nums.length ? Math.min(...nums) : 0;
+                        case 'MAX': return nums.length ? Math.max(...nums) : 0;
+                        case 'COUNT': return nums.length;
+                        default: return 0;
+                    }
+                }
+            );
+
+            // Replace remaining cell references with their values
+            processed = processed.replace(/\b([A-Z]+)(\d+)\b/gi, (_, letters, digits) => {
+                const ref = this._parseCellRef(letters.toUpperCase() + digits);
+                if (!ref) return '0';
+                return this._getCellValue(ref.row, ref.col, new Set(visited));
+            });
+
+            // Evaluate the resulting math expression safely
+            const result = new Function(`"use strict"; return (${processed});`)();
+            return typeof result === 'number' && isFinite(result) ? result : '#ERR';
+        } catch {
+            return '#ERR';
+        }
+    }
+
+    /** Returns the display value for a cell — evaluates formulas */
+    evaluateCell(row, col) {
+        const raw = this.getCell(row, col);
+        if (raw == null || raw === '') return '';
+        const s = String(raw);
+        if (!s.startsWith('=')) return s;
+        const result = this._evaluate(s.substring(1), new Set([`${row},${col}`]));
+        return String(result);
     }
 
     getVirtualCanvasWidth() {
-        return this.virtualColumns * this.cellWidth + 50; // +50 for row numbers
+        return this._colPrefix[this.virtualColumns];
     }
 
     getVirtualCanvasHeight() {
-        return this.virtualRows * this.cellHeight + 35; // +35 for header
-    }
-
-    getScrollPercentX() {
-        const maxScroll = Math.max(1, this.getVirtualCanvasWidth() - 800);
-        return Math.min(1, this.scrollX / maxScroll);
-    }
-
-    getScrollPercentY() {
-        const maxScroll = Math.max(1, this.getVirtualCanvasHeight() - 600);
-        return Math.min(1, this.scrollY / maxScroll);
+        return this._rowPrefix[this.virtualRows];
     }
 }

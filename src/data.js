@@ -18,7 +18,7 @@ export function generateCustomerData() {
             lastName: lastName,
             email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
             phone: `555-${String(1000 + i).slice(-4)}`,
-            createdAt: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toLocaleDateString(),
+            createdAt: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString().split('T')[0],
             address: `${100 + i * 10} Main St`,
             city: cities[i % cities.length],
             state: states[i % states.length],
@@ -49,7 +49,7 @@ export function generateSalesData(customerIds) {
             city: '',
             state: '',
             country: '',
-            saleDateTime: `${date.toLocaleDateString()} ${time}`,
+            saleDateTime: `${date.toISOString().split('T')[0]} ${time}`,
             totalAmount: `$${amount}`,
             status: statuses[Math.floor(Math.random() * statuses.length)]
         });
