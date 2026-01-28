@@ -57,8 +57,10 @@ A high-performance canvas-based spreadsheet built with React and Vite.
 ### Toolbar
 - Font size selector (8–32px) applies to the selected cell range
 - Text color picker with 16 preset swatches in a 4×4 grid
-- Custom color option via native color input
-- Color picker dropdown closes on outside click
+- Background color picker with 16 preset swatches plus default (no fill)
+- Custom color option via native color input for both text and background
+- Bold and Italic toggle buttons with active state highlighting
+- Color picker dropdowns close on outside click
 - Formatting is per-cell and persists across scroll and selection changes
 
 ### Resizable Columns and Rows
@@ -69,8 +71,35 @@ A high-performance canvas-based spreadsheet built with React and Vite.
 - Default column width: 120px, default row height: 30px
 - Prefix-sum arrays with binary search for O(log n) hit-testing of variable-size cells
 
+### Client-side API (`window.chartlySpreadsheetAPI`)
+- Exposed globally as `window.chartlySpreadsheetAPI` for programmatic control
+- `exec(cmd)` executes a single command; `execBatch(cmds)` executes multiple with one repaint
+- Calling `exec()` with no arguments returns the help command output
+- Direct spreadsheet instance access via `chartlySpreadsheetAPI.spreadsheet`
+- **Data commands** (provide optional `endRow`/`endCol` for range):
+  - `getValue` — raw value (single cell) or 2D array (range)
+  - `getFormula` — formula string or null (single) or 2D array (range)
+  - `getDisplay` — evaluated display value (single) or 2D array (range)
+  - `setValue` — set single value, or pass a 2D array to fill a range automatically
+  - `getAllData` — returns all data as a 2D array with minimal bounding dimensions
+  - `setData` — write an array of JSON objects with auto-generated header row at a given top-left cell
+- **Formatting commands**:
+  - `getFormat` — get formatting of a single cell or range (returns format object or 2D array)
+  - `setFormat` — apply formatting (fontSize, color, bgColor, bold, italic) to cell or range
+- **Size commands**:
+  - `getColWidth` — get the width of a column
+  - `getRowHeight` — get the height of a row
+  - `setColWidth` — set the width of a column (min 40px)
+  - `setRowHeight` — set the height of a row (min 16px)
+- **Utility commands**:
+  - `cellToRef` — convert `{ row, col }` to Excel-style reference (e.g. `"A1"`)
+  - `refToCell` — convert Excel-style reference (e.g. `"B3"`) to `{ row, col }`
+  - `help` — list all available commands with examples and descriptions
+
 ### Data
-- Editing any cell outside the initial data auto-expands the data model
+- Sparse numeric-keyed storage: `data[rowIndex][colIndex] = value`
+- Only populated cells consume memory — efficient for large sparse spreadsheets
+- Editing any cell outside the initial data auto-expands the sparse structure
 - Demo dataset with 15 customers and 40 sales records
 - Combined view with field headers, customer data, separator, and sales data
 - ISO 8601 date format

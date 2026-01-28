@@ -91,8 +91,6 @@ export function renderBody(canvas, spreadsheet, viewportWidth, viewportHeight, s
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, viewportWidth, viewportHeight);
 
-    const rows = spreadsheet.getRows();
-    const columns = spreadsheet.getColumns();
     const scrollX = spreadsheet.scrollX;
     const scrollY = spreadsheet.scrollY;
     const startRow = spreadsheet.getRowAtY(scrollY);
@@ -102,14 +100,13 @@ export function renderBody(canvas, spreadsheet, viewportWidth, viewportHeight, s
     let y = spreadsheet.getRowTop(startRow) - scrollY;
     for (let i = startRow; y < viewportHeight && i < spreadsheet.virtualRows; i++) {
         const rh = spreadsheet.rowHeights[i];
-        const row = rows[i];
-        const rowExists = i < rows.length && row;
+        const row = spreadsheet.data[i];
 
         let x = spreadsheet.getColLeft(startCol) - scrollX;
         for (let j = startCol; x < viewportWidth && j < spreadsheet.virtualColumns; j++) {
             const cw = spreadsheet.colWidths[j];
 
-            if (rowExists && row.isFieldHeader) {
+            if (row && row._isFieldHeader) {
                 ctx.fillStyle = '#e5e7eb';
                 ctx.fillRect(x, y, cw, rh);
                 ctx.strokeStyle = '#d1d5db';
@@ -119,23 +116,11 @@ export function renderBody(canvas, spreadsheet, viewportWidth, viewportHeight, s
                 ctx.font = 'bold 12px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                if (columns[j]) {
-                    const text = row[columns[j].key] || '';
-                    ctx.fillText(text, x + 5, y + rh / 2);
-                }
-            } else if (rowExists && row.isHeader) {
-                ctx.fillStyle = '#1f2937';
-                ctx.fillRect(x, y, cw, rh);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 12px sans-serif';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(row.label, x + 5, y + rh / 2);
-            } else if (rowExists && columns[j]) {
+                const text = row[j] != null ? String(row[j]) : '';
+                ctx.fillText(text, x + 5, y + rh / 2);
+            } else {
                 const display = spreadsheet.evaluateCell(i, j);
                 drawCell(ctx, x, y, cw, rh, display, spreadsheet.getCellFormat(i, j));
-            } else {
-                drawCell(ctx, x, y, cw, rh, '', spreadsheet.getCellFormat(i, j));
             }
             x += cw;
         }
@@ -205,15 +190,18 @@ export function renderBody(canvas, spreadsheet, viewportWidth, viewportHeight, s
 }
 
 function drawCell(ctx, x, y, w, h, text, format) {
-    ctx.fillStyle = '#fafafa';
+    const bgColor = (format && format.bgColor) || '#fafafa';
+    ctx.fillStyle = bgColor;
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
     const fontSize = (format && format.fontSize) || 12;
     const color = (format && format.color) || '#333';
+    const bold = (format && format.bold) ? 'bold ' : '';
+    const italic = (format && format.italic) ? 'italic ' : '';
     ctx.fillStyle = color;
-    ctx.font = `${fontSize}px sans-serif`;
+    ctx.font = `${italic}${bold}${fontSize}px sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const charWidth = fontSize * 0.6;

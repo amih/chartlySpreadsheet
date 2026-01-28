@@ -157,10 +157,8 @@ export function SpreadsheetCanvas({ spreadsheet, onSelectionChange, repaintKey }
 
   const startEdit = useCallback((row, col) => {
     if (!spreadsheet.isCellEditable(row)) return;
-    const columns = spreadsheet.getColumns();
-    const currentVal = (columns[col] && spreadsheet.data[row])
-      ? String(spreadsheet.data[row][columns[col].key] ?? '')
-      : '';
+    const raw = spreadsheet.getCell(row, col);
+    const currentVal = raw != null ? String(raw) : '';
     setEditingCell({ row, col });
     setEditValue(currentVal);
   }, [spreadsheet]);
