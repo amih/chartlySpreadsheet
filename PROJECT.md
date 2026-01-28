@@ -48,9 +48,18 @@ A high-performance canvas-based spreadsheet built with React and Vite.
 - Arrow keys during formula editing insert/replace cell references at the cursor
 - Repeated arrow keys move the referenced cell instead of inserting duplicates
 
-### Copy
+### Copy & Paste
 - Ctrl+C / Cmd+C copies the selected range as tab-separated text to the clipboard
 - Copies evaluated values, not raw formulas
+- Ctrl+V / Cmd+V pastes tab-separated text starting at the focused cell
+- Newlines in pasted text create new rows; tabs create new columns
+
+### Toolbar
+- Font size selector (8–32px) applies to the selected cell range
+- Text color picker with 16 preset swatches in a 4×4 grid
+- Custom color option via native color input
+- Color picker dropdown closes on outside click
+- Formatting is per-cell and persists across scroll and selection changes
 
 ### Resizable Columns and Rows
 - Drag the right edge of a column header to resize the column
@@ -85,6 +94,7 @@ A high-performance canvas-based spreadsheet built with React and Vite.
     └── components/
         ├── App.jsx                   # Root app layout
         ├── Layout.jsx                # Header and footer
+        ├── Toolbar.jsx               # Font size and color picker toolbar
         └── SpreadsheetCanvas.jsx     # Main component (selection, editing, resize, scroll)
 ```
 

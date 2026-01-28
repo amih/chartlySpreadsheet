@@ -133,9 +133,9 @@ export function renderBody(canvas, spreadsheet, viewportWidth, viewportHeight, s
                 ctx.fillText(row.label, x + 5, y + rh / 2);
             } else if (rowExists && columns[j]) {
                 const display = spreadsheet.evaluateCell(i, j);
-                drawCell(ctx, x, y, cw, rh, display);
+                drawCell(ctx, x, y, cw, rh, display, spreadsheet.getCellFormat(i, j));
             } else {
-                drawCell(ctx, x, y, cw, rh, '');
+                drawCell(ctx, x, y, cw, rh, '', spreadsheet.getCellFormat(i, j));
             }
             x += cw;
         }
@@ -204,17 +204,20 @@ export function renderBody(canvas, spreadsheet, viewportWidth, viewportHeight, s
     }
 }
 
-function drawCell(ctx, x, y, w, h, text) {
+function drawCell(ctx, x, y, w, h, text, format) {
     ctx.fillStyle = '#fafafa';
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
-    ctx.fillStyle = '#333';
-    ctx.font = '12px sans-serif';
+    const fontSize = (format && format.fontSize) || 12;
+    const color = (format && format.color) || '#333';
+    ctx.fillStyle = color;
+    ctx.font = `${fontSize}px sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    const maxChars = Math.max(1, Math.floor((w - 10) / 7));
+    const charWidth = fontSize * 0.6;
+    const maxChars = Math.max(1, Math.floor((w - 10) / charWidth));
     const truncated = text.length > maxChars ? text.substring(0, maxChars) + '...' : text;
     ctx.fillText(truncated, x + 5, y + h / 2);
 }

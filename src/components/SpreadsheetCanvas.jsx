@@ -24,7 +24,7 @@ function normalizeSelection(anchor, end) {
 
 const RESIZE_HANDLE_PX = 5;
 
-export function SpreadsheetCanvas({ spreadsheet }) {
+export function SpreadsheetCanvas({ spreadsheet, onSelectionChange, repaintKey }) {
   const cornerRef = useRef(null);
   const colHeaderRef = useRef(null);
   const rowNumRef = useRef(null);
@@ -88,6 +88,16 @@ export function SpreadsheetCanvas({ spreadsheet }) {
   useEffect(() => {
     paintAll();
   }, [paintAll]);
+
+  // Repaint when format changes from toolbar
+  useEffect(() => {
+    if (repaintKey > 0) paintBody(getSelection());
+  }, [repaintKey, paintBody, getSelection]);
+
+  // Notify parent of selection changes
+  useEffect(() => {
+    if (onSelectionChange) onSelectionChange(normalizeSelection(anchor, selEnd));
+  }, [anchor, selEnd, onSelectionChange]);
 
   // ---- Scroll ----
   const handleScroll = (e) => {
@@ -234,11 +244,38 @@ export function SpreadsheetCanvas({ spreadsheet }) {
     navigator.clipboard.writeText(lines.join('\n'));
   }, [anchor, selEnd, spreadsheet]);
 
+  // ---- Paste from clipboard ----
+  const pasteSelection = useCallback(async () => {
+    if (!anchor) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      const rows = text.split('\n');
+      for (let r = 0; r < rows.length; r++) {
+        const cells = rows[r].split('\t');
+        for (let c = 0; c < cells.length; c++) {
+          spreadsheet.setCell(anchor.row + r, anchor.col + c, cells[c]);
+        }
+      }
+      // Extend selection to cover pasted range
+      const endRow = anchor.row + rows.length - 1;
+      const endCol = anchor.col + rows[0].split('\t').length - 1;
+      setSelEnd({ row: endRow, col: endCol });
+      paintBody(getSelection());
+    } catch { /* clipboard access denied */ }
+  }, [anchor, spreadsheet, paintBody, getSelection]);
+
   // ---- Keyboard ----
   const handleKeyDown = useCallback((e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
       e.preventDefault();
       copySelection();
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !editingCell) {
+      e.preventDefault();
+      pasteSelection();
       return;
     }
 
@@ -368,7 +405,7 @@ export function SpreadsheetCanvas({ spreadsheet }) {
       selectSingle(next);
       scrollIntoView(next);
     }
-  }, [anchor, selEnd, editingCell, commitEdit, cancelEdit, startEdit, selectSingle, scrollIntoView, spreadsheet, paintBody, getSelection, editValue, copySelection]);
+  }, [anchor, selEnd, editingCell, commitEdit, cancelEdit, startEdit, selectSingle, scrollIntoView, spreadsheet, paintBody, getSelection, editValue, copySelection, pasteSelection]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -471,6 +508,9 @@ export function SpreadsheetCanvas({ spreadsheet }) {
     const top = spreadsheet.getRowTop(editingCell.row) - sc.scrollTop;
     const width = spreadsheet.colWidths[editingCell.col];
     const height = spreadsheet.rowHeights[editingCell.row];
+    const fmt = spreadsheet.getCellFormat(editingCell.row, editingCell.col);
+    const fontSize = fmt.fontSize || 12;
+    const color = fmt.color || '#333';
     return {
       position: 'absolute',
       left, top,
@@ -479,7 +519,8 @@ export function SpreadsheetCanvas({ spreadsheet }) {
       border: '2px solid #2563eb',
       outline: 'none',
       padding: '0 4px',
-      font: '12px sans-serif',
+      font: `${fontSize}px sans-serif`,
+      color,
       boxSizing: 'border-box',
       zIndex: 10,
       background: '#fff',

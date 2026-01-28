@@ -22,6 +22,9 @@ export class Spreadsheet {
         this.colWidths = new Array(virtualColumns).fill(DEFAULT_COL_WIDTH);
         this.rowHeights = new Array(virtualRows).fill(DEFAULT_ROW_HEIGHT);
 
+        // Per-cell formatting (fontSize, color)
+        this.cellFormats = new Map();
+
         // Precomputed prefix sums for fast lookup
         this._colPrefix = null;
         this._rowPrefix = null;
@@ -134,6 +137,24 @@ export class Spreadsheet {
 
     isCellEditable(row) {
         return row >= 0;
+    }
+
+    getCellFormat(row, col) {
+        return this.cellFormats.get(`${row},${col}`) || {};
+    }
+
+    setCellFormat(row, col, fmt) {
+        const key = `${row},${col}`;
+        const existing = this.cellFormats.get(key) || {};
+        this.cellFormats.set(key, { ...existing, ...fmt });
+    }
+
+    setRangeFormat(startRow, startCol, endRow, endCol, fmt) {
+        for (let r = startRow; r <= endRow; r++) {
+            for (let c = startCol; c <= endCol; c++) {
+                this.setCellFormat(r, c, fmt);
+            }
+        }
     }
 
     /** Parse a cell reference like "A1" into {row, col} (0-indexed) */
