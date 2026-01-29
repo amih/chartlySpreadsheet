@@ -87,7 +87,7 @@ A high-performance canvas-based spreadsheet built with React and Vite.
 - `exec(cmd)` executes a single command; `execBatch(cmds)` executes multiple with one repaint
 - Calling `exec()` with no arguments returns the help command output
 - Direct spreadsheet instance access via `chartlySpreadsheetAPI.spreadsheet`
-- **Data commands** (provide optional `endRow`/`endCol` for range):
+- **Data commands** (provide optional `rowCount`/`colCount` for range):
     - `getValue` — raw value (single cell) or 2D array (range)
     - `getFormula` — formula string or null (single) or 2D array (range)
     - `getDisplay` — evaluated display value (single) or 2D array (range)

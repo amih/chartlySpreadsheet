@@ -233,17 +233,17 @@ export class Spreadsheet {
      *
      * Supported commands:
      *
-     *   { command: "getValue", row, col, [endRow, endCol] }
-     *       Single cell → raw value. Range (endRow/endCol provided) → 2D array.
-     *   { command: "getFormula", row, col, [endRow, endCol] }
+     *   { command: "getValue", row, col, [rowCount, colCount] }
+     *       Single cell → raw value. Range (`rowCount`/`colCount` provided) → 2D array.
+     *   { command: "getFormula", row, col, [rowCount, colCount] }
      *       Single cell → formula string or null. Range → 2D array of formula|null.
-     *   { command: "getDisplay", row, col, [endRow, endCol] }
+     *   { command: "getDisplay", row, col, [rowCount, colCount] }
      *       Single cell → evaluated display string. Range → 2D array.
      *   { command: "setValue", row, col, value }
      *       Scalar value → sets single cell. 2D array → writes block starting at (row, col).
-     *   { command: "getFormat", row, col, [endRow, endCol] }
+     *   { command: "getFormat", row, col, [rowCount, colCount] }
      *       Single cell → format object. Range → 2D array of format objects.
-     *   { command: "setFormat", row, col, format, [endRow, endCol] }
+     *   { command: "setFormat", row, col, format, [rowCount, colCount] }
      *       Single cell or range. format: { fontSize?, color?, bgColor?, bold?, italic? }
      *   { command: "getColWidth", col }           → column width in px
      *   { command: "getRowHeight", row }          → row height in px
@@ -265,17 +265,17 @@ export class Spreadsheet {
             case 'help':
                 return [
                     { command: 'getValue',   example: "{ command: 'getValue', row: 0, col: 0 }",                                         description: 'Get raw value of a single cell' },
-                    { command: 'getValue',   example: "{ command: 'getValue', row: 0, col: 0, endRow: 4, endCol: 2 }",                   description: 'Get raw values of a range (returns 2D array)' },
+                    { command: 'getValue',   example: "{ command: 'getValue', row: 0, col: 0, rowCount: 5, colCount: 3 }",                   description: 'Get raw values of a range (returns 2D array)' },
                     { command: 'getFormula', example: "{ command: 'getFormula', row: 0, col: 0 }",                                       description: 'Get formula string (e.g. "=SUM(A1:A5)") or null if not a formula' },
-                    { command: 'getFormula', example: "{ command: 'getFormula', row: 0, col: 0, endRow: 4, endCol: 2 }",                 description: 'Get formulas for a range (returns 2D array of string|null)' },
+                    { command: 'getFormula', example: "{ command: 'getFormula', row: 0, col: 0, rowCount: 5, colCount: 3 }",                 description: 'Get formulas for a range (returns 2D array of string|null)' },
                     { command: 'getDisplay', example: "{ command: 'getDisplay', row: 0, col: 0 }",                                      description: 'Get evaluated display value (formulas resolved)' },
-                    { command: 'getDisplay', example: "{ command: 'getDisplay', row: 0, col: 0, endRow: 4, endCol: 2 }",                description: 'Get display values for a range (returns 2D array)' },
+                    { command: 'getDisplay', example: "{ command: 'getDisplay', row: 0, col: 0, rowCount: 5, colCount: 3 }",                description: 'Get display values for a range (returns 2D array)' },
                     { command: 'setValue',   example: "{ command: 'setValue', row: 0, col: 0, value: 'Hello' }",                         description: 'Set a single cell value' },
                     { command: 'setValue',   example: "{ command: 'setValue', row: 0, col: 0, value: [['a','b'],['c','d']] }",             description: 'Set a block of values from a 2D array' },
                     { command: 'getFormat',  example: "{ command: 'getFormat', row: 0, col: 0 }",                                                description: 'Get formatting of a single cell (returns { fontSize?, color?, bgColor?, bold?, italic? })' },
-                    { command: 'getFormat',  example: "{ command: 'getFormat', row: 0, col: 0, endRow: 4, endCol: 2 }",                          description: 'Get formatting for a range (returns 2D array of format objects)' },
+                    { command: 'getFormat',  example: "{ command: 'getFormat', row: 0, col: 0, rowCount: 5, colCount: 3 }",                          description: 'Get formatting for a range (returns 2D array of format objects)' },
                     { command: 'setFormat',  example: "{ command: 'setFormat', row: 0, col: 0, format: { fontSize: 18, color: '#e53e3e', bgColor: '#ffffcc', bold: true, italic: false } }", description: 'Set formatting on a single cell (all format props optional)' },
-                    { command: 'setFormat',  example: "{ command: 'setFormat', row: 0, col: 0, endRow: 4, endCol: 2, format: { bold: true } }",     description: 'Set formatting on a range' },
+                    { command: 'setFormat',  example: "{ command: 'setFormat', row: 0, col: 0, rowCount: 5, colCount: 3, format: { bold: true } }",     description: 'Set formatting on a range' },
                     { command: 'getColWidth',  example: "{ command: 'getColWidth', col: 0 }",                                               description: 'Get width of a column in pixels' },
                     { command: 'getRowHeight', example: "{ command: 'getRowHeight', row: 0 }",                                            description: 'Get height of a row in pixels' },
                     { command: 'setColWidth',  example: "{ command: 'setColWidth', col: 0, width: 200 }",                                 description: 'Set width of a column in pixels (min 40)' },
@@ -288,15 +288,17 @@ export class Spreadsheet {
                 ];
 
             case 'getValue': {
-                const isRange = cmd.endRow != null && cmd.endCol != null;
+                const isRange = cmd.rowCount != null && cmd.colCount != null;
                 if (!isRange) {
                     const val = this.getCell(cmd.row, cmd.col);
                     return val == null ? '' : val;
                 }
+                const endRow = cmd.row + cmd.rowCount - 1;
+                const endCol = cmd.col + cmd.colCount - 1;
                 const result = [];
-                for (let r = cmd.row; r <= cmd.endRow; r++) {
+                for (let r = cmd.row; r <= endRow; r++) {
                     const row = [];
-                    for (let c = cmd.col; c <= cmd.endCol; c++) {
+                    for (let c = cmd.col; c <= endCol; c++) {
                         const v = this.getCell(r, c);
                         row.push(v == null ? '' : v);
                     }
@@ -306,17 +308,19 @@ export class Spreadsheet {
             }
 
             case 'getFormula': {
-                const isRange = cmd.endRow != null && cmd.endCol != null;
+                const isRange = cmd.rowCount != null && cmd.colCount != null;
                 const formulaOf = (r, c) => {
                     const raw = this.getCell(r, c);
                     const s = raw == null ? '' : String(raw);
                     return s.startsWith('=') ? s : null;
                 };
                 if (!isRange) return formulaOf(cmd.row, cmd.col);
+                const endRow = cmd.row + cmd.rowCount - 1;
+                const endCol = cmd.col + cmd.colCount - 1;
                 const result = [];
-                for (let r = cmd.row; r <= cmd.endRow; r++) {
+                for (let r = cmd.row; r <= endRow; r++) {
                     const row = [];
-                    for (let c = cmd.col; c <= cmd.endCol; c++) {
+                    for (let c = cmd.col; c <= endCol; c++) {
                         row.push(formulaOf(r, c));
                     }
                     result.push(row);
@@ -325,12 +329,14 @@ export class Spreadsheet {
             }
 
             case 'getDisplay': {
-                const isRange = cmd.endRow != null && cmd.endCol != null;
+                const isRange = cmd.rowCount != null && cmd.colCount != null;
                 if (!isRange) return this.evaluateCell(cmd.row, cmd.col);
+                const endRow = cmd.row + cmd.rowCount - 1;
+                const endCol = cmd.col + cmd.colCount - 1;
                 const result = [];
-                for (let r = cmd.row; r <= cmd.endRow; r++) {
+                for (let r = cmd.row; r <= endRow; r++) {
                     const row = [];
-                    for (let c = cmd.col; c <= cmd.endCol; c++) {
+                    for (let c = cmd.col; c <= endCol; c++) {
                         row.push(this.evaluateCell(r, c));
                     }
                     result.push(row);
@@ -354,12 +360,14 @@ export class Spreadsheet {
             }
 
             case 'getFormat': {
-                const isRange = cmd.endRow != null && cmd.endCol != null;
+                const isRange = cmd.rowCount != null && cmd.colCount != null;
                 if (!isRange) return this.getCellFormat(cmd.row, cmd.col);
+                const endRow = cmd.row + cmd.rowCount - 1;
+                const endCol = cmd.col + cmd.colCount - 1;
                 const result = [];
-                for (let r = cmd.row; r <= cmd.endRow; r++) {
+                for (let r = cmd.row; r <= endRow; r++) {
                     const row = [];
-                    for (let c = cmd.col; c <= cmd.endCol; c++) {
+                    for (let c = cmd.col; c <= endCol; c++) {
                         row.push(this.getCellFormat(r, c));
                     }
                     result.push(row);
@@ -368,11 +376,13 @@ export class Spreadsheet {
             }
 
             case 'setFormat': {
-                const isRange = cmd.endRow != null && cmd.endCol != null;
+                const isRange = cmd.rowCount != null && cmd.colCount != null;
                 if (!isRange) {
                     this.setCellFormat(cmd.row, cmd.col, cmd.format);
                 } else {
-                    this.setRangeFormat(cmd.row, cmd.col, cmd.endRow, cmd.endCol, cmd.format);
+                    const endRow = cmd.row + cmd.rowCount - 1;
+                    const endCol = cmd.col + cmd.colCount - 1;
+                    this.setRangeFormat(cmd.row, cmd.col, endRow, endCol, cmd.format);
                 }
                 break;
             }
